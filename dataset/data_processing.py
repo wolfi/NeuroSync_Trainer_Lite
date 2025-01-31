@@ -8,6 +8,7 @@ from utils.video.mov_extraction import get_audio, find_files
 COLUMNS_TO_DROP = ['Timecode', 'BlendshapeCount']
 
 def load_data(root_dir, sr, processed_folders):
+    
     examples = []
     all_facial_data = []
     all_audio_data = []
@@ -25,6 +26,7 @@ def load_data(root_dir, sr, processed_folders):
     return examples
 
 def scale_facial_data(facial_data, scale_factor=1.1):
+    
     scaled_data = np.copy(facial_data)
 
     # Iterate through each value to apply scaling
@@ -40,9 +42,11 @@ def scale_facial_data(facial_data, scale_factor=1.1):
 
 
 def process_folder(folder_path, sr, apply_smoothing=False, apply_over_scale=False):
+    
     mov_path, mp4_path, wav_path, facial_csv_path, audio_features_csv_path, _ = find_files(folder_path)
+    
     video_path = mov_path or mp4_path
-
+    
     # Check if we have facial CSV and either video/audio paths or the audio features CSV file
     if facial_csv_path and (video_path or wav_path or os.path.exists(audio_features_csv_path)):
         
