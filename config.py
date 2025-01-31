@@ -1,4 +1,5 @@
 import os
+import platform
 
 # Detect OS
 is_windows = platform.system() == "Windows"
@@ -9,6 +10,15 @@ root_dir = os.path.dirname(os.path.abspath(__file__))
 # Set ffmpeg path based on OS
 if is_windows:
     ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe')
+    
+    # Check if ffmpeg.exe exists
+    if not os.path.exists(ffmpeg_path):
+        raise FileNotFoundError(
+            f"FFmpeg not found! Please download FFmpeg for Windows from:\n"
+            f"https://www.ffmpeg.org/download.html\n\n"
+            f"Once downloaded, place 'ffmpeg.exe' in:\n"
+            f"{os.path.dirname(ffmpeg_path)}"
+        )
 else:
     ffmpeg_path = 'ffmpeg'  # Use system-wide ffmpeg on Linux/macOS
 
