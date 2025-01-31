@@ -19,7 +19,7 @@ Before training, ensure you have the required dependencies installed, including:
 - FFMPEG for linux should be installed globally, Windows users need to get a built ffmpeg.exe and put it inside utils\video\ _ffmpeg\bin to correctly strip the audio from the .mov in the face data folders....
 
 ### 2. Collect & Prepare Data
-To train the model, you need audio and facial blendshape data. Follow these steps:
+To train the model, you need audio and calibrated facial blendshape data. Ensure you 'calibrate' in the LiveLink app before you record your data. Follow these steps:
 1. **Record Face & Audio Data** using an iPhone with **ARKit Blendshapes**.
 2. **Download & Extract the Data** to your local machine.
 3. **Move Data to the Correct Folder:**
