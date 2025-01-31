@@ -494,42 +494,6 @@ def train_one_epoch_multi_gpu_4(
 
 
 
-
-def flatten_grads(model):
-    """
-    Flatten all .grad tensors from 'model' into a single 1D tensor.
-    If a param has .grad=None, we either fill with zeros or skip it.
-    Here we fill with zeros to preserve alignment, so all models have the same flattened size.
-    """
-    grads = []
-    for p in model.parameters():
-        if p.grad is None:
-            # Allocate zeros of same shape, device, dtype
-            # so that the flattened vector sizes match across all GPUs
-            z = torch.zeros(p.numel(), device=p.device, dtype=p.dtype)
-            grads.append(z)
-        else:
-            grads.append(p.grad.view(-1))
-    return torch.cat(grads)
-
-def unflatten_grads(flat, model):
-    """
-    Copy slices from 'flat' 1D tensor back into each param's .grad in 'model'.
-    The param order & shapes must match exactly the loop in flatten_grads().
-    """
-    offset = 0
-    for p in model.parameters():
-        length = p.numel()
-        if p.grad is None:
-            # If you truly want to restore "None", just skip. 
-            # Or create a zero-filled .grad in p if desired.
-            offset += length
-            continue
-        p.grad.data.copy_(flat[offset:offset+length].view_as(p))
-        offset += length
-
-
-
 def validate_model(model, val_dataloader, criterion, device):
     model.eval()
     val_loss = 0
