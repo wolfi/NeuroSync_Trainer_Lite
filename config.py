@@ -1,10 +1,16 @@
 import os
 
-# Assuming this script is in the root directory
+# Detect OS
+is_windows = platform.system() == "Windows"
+
+# Get root directory
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Construct the path relative to the root directory
-ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe')  # ffmpeg_path = 'ffmpeg'  # Linux system-wide FFmpeg command or for windows :  ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe') 
+# Set ffmpeg path based on OS
+if is_windows:
+    ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe')
+else:
+    ffmpeg_path = 'ffmpeg'  # Use system-wide ffmpeg on Linux/macOS
 
 
 training_config = { 
