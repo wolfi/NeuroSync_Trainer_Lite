@@ -61,5 +61,5 @@ This project is licensed under the **Creative Commons Attribution-NonCommercial 
 
 [View Full License](http://creativecommons.org/licenses/by-nc/4.0/)
 
-&copy; 2024 NeuroSync Trainer Lite Team
+&copy; 2025 NeuroSync Trainer Lite Team
 
