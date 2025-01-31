@@ -103,7 +103,7 @@ def process_audio_features(audio_features, model, device, config):
 
     # Zero specified columns using the helper method
     
-    final_decoded_outputs = zero_columns(final_decoded_outputs)
+  #  final_decoded_outputs = zero_columns(final_decoded_outputs)
 
 
     return final_decoded_outputs
