@@ -29,6 +29,12 @@ Follow these steps:
 3. **Move Data to the Correct Folder:**
    - Place each extracted folder inside `dataset/data/`.
 
+If you want a universal model (any voice) duplicate data with voice to voice using ElevenLabs or similar multiple times for multiple voice types and use that data to train. 
+
+For one actor, at least 30 minutes of data is required. The more data the better but this get unmanagable past 8 voices at that length of data (if you want a universal model 8 voices at 30 mins each would require 256gb of system memory at the current set batch size as an example).
+
+For better results, record the audio externally and time it with the mov then replace the mov with a wav - it will work better to have cleaner audio than the iPhone provides. More samples seems to work better (hence 88200, you can reduce this to 16000 if you want).
+
 ### 3. Train the Model
 Once your data is ready, start training by running:
 ```bash
