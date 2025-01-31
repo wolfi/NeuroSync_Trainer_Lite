@@ -1,0 +1,40 @@
+import os
+
+# Assuming this script is in the root directory
+root_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the path relative to the root directory
+ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe')  # ffmpeg_path = 'ffmpeg'  # Linux system-wide FFmpeg command or for windows :  ffmpeg_path = os.path.join(root_dir, 'utils', 'video', '_ffmpeg', 'bin', 'ffmpeg.exe') 
+
+
+training_config = { 
+    'mode': 'scratch',       # Training mode: 'scratch' or 'resume'
+    'sr': 88200,             # Sample rate 
+    'frame_rate': 60,        # Frame rate for facial data
+    'hidden_dim': 1024,      # Hidden dimension for the model ### increases increase GPU memory requirements a lot.
+    'n_layers': 4,           # Number of layers in the model
+    'num_heads': 4,          # Number of attention heads
+    'dropout': 0.3,          # Dropout rate
+    'batch_size':  128 + 64, # Batch size ## REDUCE THIS IF < 24GB GPU
+    'micro_batch_size': 128, # Micro batch size # If you increase this you need to reduce the batch size
+    'learning_rate': 1e-4,   # Learning rate
+    'weight_decay': 1e-5,    # Weight decay for the optimizer
+    'n_epochs': 500,         # Number of training epochs
+    'output_dim': 61,        # ,       
+    'delta': 1,              # Delta for Huber loss
+    'w1': 1.0,               # Weight for Huber loss
+    'w2': 1.0, 
+    'w3': 1.0, 
+    'use_multi_gpu' : False,   
+    'num_gpus' : 1,               
+    'warmup_epochs': 0, 
+    'input_dim': 69,  
+    'frame_size': 128,
+    'ffmpeg_path': ffmpeg_path,  
+    'root_dir': r"dataset/data",     
+    'model_path': r"out/model.pth",
+    'audio_path': r"dataset/test_set/audio.wav",
+    'ground_truth_path': r"dataset/test_set/testset.csv",
+    'checkpoint_path': r"out/checkpoints/checkpoint.pth", 
+}
+

@@ -1,0 +1,1 @@
+ffmpeg.exe etc must go here if on windows. If on Linux just install ffmpeg and change the setting in the config file.
