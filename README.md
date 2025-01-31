@@ -59,7 +59,7 @@ To **generate facial blendshapes from audio** and send them to Unreal Engine, yo
 - [**NeuroSync Local API**](https://github.com/AnimaVR/NeuroSync_Local_API) – Handles real-time facial data processing.
 - [**NeuroSync Player**](https://github.com/AnimaVR/NeuroSync_Player) – Sends the animation data to Unreal Engine or any **LiveLink-compatible** software.
 
-## Licensee
+## License
 This software is licensed under a dual-license model:
 
 1️⃣ For individuals and businesses earning under $1M per year:
