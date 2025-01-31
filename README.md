@@ -65,5 +65,5 @@ You may use, modify, distribute, and integrate the software for any purpose, inc
 
 📜 For more details, see LICENSE.md or contact us.
 
-&copy; 2025 NeuroSync Trainer Lite Team
+&copy; 2025 NeuroSync Trainer Lite
 
