@@ -16,7 +16,7 @@ Before training, ensure you have the required dependencies installed, including:
 - Python 3.9+
 - PyTorch with CUDA support (for GPU acceleration)
 - NumPy, Pandas, Librosa, OpenCV, Matplotlib, and other required Python libraries
-- FFMPEG for linux should be installed globally, Windows users need to get a built ffmpeg.exe and put it inside utils\video\ _ffmpeg\bin to correctly strip the audio from the .mov in the face data folders....
+- FFMPEG for linux should be installed globally, Windows users need to get a compiled ffmpeg.exe and put it inside utils\video\ _ffmpeg\bin to correctly strip the audio from the .mov in the face data folders....
 
 ### 2. Collect & Prepare Data
 To train the model, you need audio and calibrated facial blendshape data. 
