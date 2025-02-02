@@ -1,12 +1,13 @@
 # dataset.py
 
+from torch.utils.data import random_split
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 import torch
 
 from dataset.data_processing import load_data
-from torch.utils.data import random_split
+
 
 def prepare_dataloader_with_split(config, val_split=0.1):
     dataset = AudioFacialDataset(config)
