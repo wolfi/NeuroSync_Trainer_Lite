@@ -1,5 +1,6 @@
 # validation.py
 
+import os
 import multiprocessing
 import numpy as np
 import pandas as pd
@@ -11,28 +12,35 @@ from utils.csv.plot_comparison import plot_comparison
 from config import training_config
 
 def generate_and_save_facial_data(epoch, audio_path, model, ground_truth_path, lock, device):
-    
     audio_features, _ = extract_audio_features(audio_path)
-       
     generated_facial_data = process_audio_features(audio_features, model, device, training_config)
-    
-    output_csv_path = f"dataset/validation_plots/generated_facial_data_epoch_{epoch + 1}.csv"
+
+    # Define output paths
+    base_dir = "dataset/validation_plots"
+    stats_dir = os.path.join(base_dir, "stats")
+
+    # Ensure required directories exist
+    os.makedirs(base_dir, exist_ok=True)
+    os.makedirs(stats_dir, exist_ok=True)
+
+    output_csv_path = os.path.join(base_dir, f"generated_facial_data_epoch_{epoch + 1}.csv")
 
     with lock:
         csv_process = multiprocessing.Process(target=save_generated_data_as_csv, args=(generated_facial_data, output_csv_path))
         csv_process.start()
         csv_process.join()
 
-    output_image_path = f"dataset/validation_plots/comparison_plot_epoch_{epoch + 1}.jpg"
-    
+    output_image_path = os.path.join(base_dir, f"comparison_plot_epoch_{epoch + 1}.jpg")
+
     with lock:
         plot_process = multiprocessing.Process(target=plot_comparison, args=(ground_truth_path, output_csv_path, output_image_path))
         plot_process.start()
         plot_process.join()
-            
+    
     # Save comparison statistics
-    output_stats_path = f"dataset/validation_plots/stats/comparison_stats_epoch_{epoch + 1}.txt"
+    output_stats_path = os.path.join(stats_dir, f"comparison_stats_epoch_{epoch + 1}.txt")
     save_comparison_stats(output_csv_path, ground_truth_path, output_stats_path)
+
 
 def save_comparison_stats(generated_data_path, ground_truth_path, output_stats_path):
     """
