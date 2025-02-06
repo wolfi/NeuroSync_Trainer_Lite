@@ -70,7 +70,7 @@ def process_folder(folder_path, sr, apply_smoothing=False, apply_over_scale=Fals
             if apply_smoothing:
                 facial_data = smooth_facial_data(facial_data)
 
-            facial_data = zero_specified_columns(facial_data)
+            facial_data = zero_specified_columns(facial_data) # this is to remove blinks and neck as they are just noise - add them in later.
           #  facial_data = remove_specified_dimensions(facial_data)
                 
             return audio_features, facial_data
