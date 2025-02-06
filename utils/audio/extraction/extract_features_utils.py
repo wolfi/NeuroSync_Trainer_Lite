@@ -52,7 +52,7 @@ def smooth_features(features):
 
 ''' 
 
-# If you know what this is then you should probably use this with mfcc, or without ;)
+# If you know what this is then you should probably use this with mfcc, or without - don't use deltas for auto corr (this is wip) ;)
 
 def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_coeff=69):
     # Pad the signal in the same way as librosa.feature.mfcc when center=True.
