@@ -50,4 +50,67 @@ def smooth_features(features):
         smoothed_features[i] = (features[i - 1] + features[i]) / 2
     return smoothed_features
 
+''' 
 
+# If you know what this is then you should probably use this with mfcc, or without ;)
+
+def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_coeff=69):
+    # Pad the signal in the same way as librosa.feature.mfcc when center=True.
+    pad = frame_length // 2
+    y_padded = np.pad(y, pad_width=pad, mode='reflect')
+    
+    # Now frame the padded signal
+    frames = librosa.util.frame(y_padded, frame_length=frame_length, hop_length=hop_length)
+    
+    # Remove DC offset per frame
+    frames = frames - np.mean(frames, axis=0, keepdims=True)
+    
+    # Apply Hann window
+    hann_window = np.hanning(frame_length)
+    windowed_frames = frames * hann_window[:, np.newaxis]
+    
+    autocorr_list = []
+    for frame in windowed_frames.T:
+        full_corr = np.correlate(frame, frame, mode='full')
+        mid = frame_length - 1
+        wanted = full_corr[mid: mid + num_autocorr_coeff]
+        # Normalize by the zero-lag (energy) if nonzero
+        if wanted[0] != 0:
+            wanted = wanted / wanted[0]
+        autocorr_list.append(wanted)
+
+    
+    autocorr_features = np.array(autocorr_list)
+    # Transpose to (num_autocorr_coeff, num_frames)
+    autocorr_features = autocorr_features.T
+    return autocorr_features
+
+
+
+
+def extract_autocorrelation_features(
+    y, sr, frame_length, hop_length, include_deltas=False
+):
+    """
+    Extract autocorrelation features, optionally with deltas/delta-deltas,
+    then align with the MFCC frame count, reduce, and handle first/last frames.
+    """
+    autocorr_features = extract_overlapping_autocorr(
+        y, sr, frame_length, hop_length
+    )
+    
+    if include_deltas:
+        autocorr_features = compute_autocorr_with_deltas(autocorr_features)
+
+    autocorr_features_reduced = reduce_features(autocorr_features)
+
+    return autocorr_features_reduced.T
+
+
+def compute_autocorr_with_deltas(autocorr_base):
+    delta_ac = librosa.feature.delta(autocorr_base)
+    delta2_ac = librosa.feature.delta(autocorr_base, order=2)
+    combined_autocorr = np.vstack([autocorr_base, delta_ac, delta2_ac])
+    return combined_autocorr
+
+'''
