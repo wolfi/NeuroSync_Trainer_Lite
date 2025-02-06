@@ -70,7 +70,7 @@ def process_folder(folder_path, sr, apply_smoothing=False, apply_over_scale=Fals
             if apply_smoothing:
                 facial_data = smooth_facial_data(facial_data)
 
-          #  facial_data = zero_specified_columns(facial_data)
+            facial_data = zero_specified_columns(facial_data)
           #  facial_data = remove_specified_dimensions(facial_data)
                 
             return audio_features, facial_data
@@ -132,8 +132,7 @@ def remove_specified_dimensions(facial_data):
 
 
 def zero_specified_columns(facial_data):
-    columns_to_zero = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 33, 34, 35, 36, 41, 42, 43, 44, 45, 47, 48, 49, 50,
-                       51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+    columns_to_zero = [0, 1, 2 ,3, 4, 7, 8, 9, 10, 11, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
 
     facial_data[:, columns_to_zero] = 0
     
