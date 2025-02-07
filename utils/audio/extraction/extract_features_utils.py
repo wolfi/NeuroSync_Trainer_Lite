@@ -52,12 +52,12 @@ def smooth_features(features):
 
 ''' 
 
-# If you know what this is then you should probably use this with mfcc, or without - don't use deltas for auto corr (this is wip) ;)
+# If you know what this is then you should probably use this with 23 mfcc + delta + delta deltas, or without - don't use deltas for auto corr (this is wip) ;)
 
 
 
-def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_coeff=138,
-                                 pad_signal=True, padding_mode="reflect", trim_padded=True):
+def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_coeff=187,
+                                 pad_signal=True, padding_mode="reflect", trim_padded=False):
     """
     Extract overlapping autocorrelation features from an audio signal.
     
