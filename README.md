@@ -1,4 +1,4 @@
-# NeuroSync Open Source Audio2Face Trainer Lite
+# NeuroSync Trainer Lite
 
 ## Overview
 
