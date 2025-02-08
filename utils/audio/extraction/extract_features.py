@@ -23,7 +23,7 @@ def extract_audio_features(audio_input, sr=88200, from_bytes=False):
     
     return combined_features, y
 
-def extract_and_combine_features(y, sr, frame_length, hop_length, apply_smoothing=False, include_autocorr=False):
+def extract_and_combine_features(y, sr, frame_length, hop_length, apply_smoothing=False, include_autocorr=True):
    
     all_features = []
     
