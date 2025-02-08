@@ -2,7 +2,7 @@
 
 ## Overview
 
-**NeuroSync Trainer Lite** is a tool for training an **audio-to-face blendshape transformer model**, enabling the generation of facial animation from audio input. This is useful for real-time applications like **virtual avatars, game characters, and animation pipelines**.
+**NeuroSync Trainer Lite** is an Open Source Audio2Face tool for training an **audio-to-face blendshape transformer model**, enabling the generation of facial animation from audio input. This is useful for real-time applications like **virtual avatars, game characters, and animation pipelines**.
 
 ## Features
 - **Audio-Driven Facial Animation** – Train a model to generate realistic blendshape animations from audio input.
