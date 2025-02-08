@@ -44,7 +44,7 @@ training_config = {
     'use_multi_gpu' : False,   
     'num_gpus' : 1,               
     'warmup_epochs': 0, 
-    'input_dim': 69,  
+    'input_dim': 256,  
     'frame_size': 128,
     'ffmpeg_path': ffmpeg_path,  
     'root_dir': r"dataset/data",     
