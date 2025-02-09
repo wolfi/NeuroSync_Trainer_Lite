@@ -6,58 +6,6 @@ import time
 import matplotlib.pyplot as plt
 import os
 
-def init_weights(m):
-    if isinstance(m, (nn.Linear, nn.Conv1d)):
-        print(f"Initializing {m} with normal distribution")
-        nn.init.normal_(m.weight, mean=0.0, std=0.02)
-        if m.bias is not None:
-            nn.init.constant_(m.bias, 0)
-
-def count_parameters(model):
-    """Count and print the number of parameters in a model."""
-    param_count = sum(p.numel() for p in model.parameters())
-    print(f"Total number of parameters: {param_count}")
-    return param_count
-
-def calculate_gradient_norm(model):
-    """Calculate and return the gradient norm for the model."""
-    total_norm = 0
-    for p in model.parameters():
-        if p.grad is not None:
-            param_norm = p.grad.data.norm(2)
-            total_norm += param_norm.item() ** 2
-    total_norm = total_norm ** (1. / 2)
-    return total_norm
-
-def print_training_progress(batch_idx, total_norm, batch_loss, batch_step, epoch, total_epochs, dataloader_len, pbar):
-    """Print training progress and update the progress bar."""
-    print(f"Batch {batch_idx}, Gradient Norm: {total_norm}")
-    if pbar is not None:
-        pbar.update(1)
-    print(f"Step [{batch_step}/{pbar.total}], Epoch [{epoch + 1}/{total_epochs}], Batch [{batch_idx + 1}/{dataloader_len}], Current Loss: {batch_loss:.4f}")
-
-def print_epoch_summary(epoch, total_epochs, epoch_loss, dataloader_len, epoch_time):
-    """Print the summary of the epoch."""
-    print(f"Epoch [{epoch + 1}/{total_epochs}], Loss: {epoch_loss / dataloader_len:.4f}, Time: {epoch_time:.2f} seconds")
-
-def save_gradient_norm_plot(epoch, gradient_norms, save_dir):
-    """Save a plot of gradient norms over the batches in an epoch."""
-    os.makedirs(save_dir, exist_ok=True)
-    plt.figure(figsize=(10, 6))
-    plt.plot(gradient_norms, label="Gradient Norm")
-    plt.xlabel("Batch Index")
-    plt.ylabel("Gradient Norm")
-    plt.title(f"Gradient Norm Fluctuations (Epoch {epoch + 1})")
-    plt.legend()
-    plt.grid(True)
-    plot_path = os.path.join(save_dir, f"gradient_norms_epoch_{epoch + 1}.png")
-    plt.savefig(plot_path)
-    plt.close()
-    print(f"Gradient norm plot saved to {plot_path}")
-
-
-
-
 def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip, batch_step=0, pbar=None, total_epochs=None):
     model.train()
     epoch_loss = 0
@@ -493,6 +441,58 @@ def train_one_epoch_multi_gpu_4(
     return batch_step
 
 
+
+
+
+
+def init_weights(m):
+    if isinstance(m, (nn.Linear, nn.Conv1d)):
+        print(f"Initializing {m} with normal distribution")
+        nn.init.normal_(m.weight, mean=0.0, std=0.02)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
+def count_parameters(model):
+    """Count and print the number of parameters in a model."""
+    param_count = sum(p.numel() for p in model.parameters())
+    print(f"Total number of parameters: {param_count}")
+    return param_count
+
+def calculate_gradient_norm(model):
+    """Calculate and return the gradient norm for the model."""
+    total_norm = 0
+    for p in model.parameters():
+        if p.grad is not None:
+            param_norm = p.grad.data.norm(2)
+            total_norm += param_norm.item() ** 2
+    total_norm = total_norm ** (1. / 2)
+    return total_norm
+
+def print_training_progress(batch_idx, total_norm, batch_loss, batch_step, epoch, total_epochs, dataloader_len, pbar):
+    """Print training progress and update the progress bar."""
+    print(f"Batch {batch_idx}, Gradient Norm: {total_norm}")
+    if pbar is not None:
+        pbar.update(1)
+    print(f"Step [{batch_step}/{pbar.total}], Epoch [{epoch + 1}/{total_epochs}], Batch [{batch_idx + 1}/{dataloader_len}], Current Loss: {batch_loss:.4f}")
+
+def print_epoch_summary(epoch, total_epochs, epoch_loss, dataloader_len, epoch_time):
+    """Print the summary of the epoch."""
+    print(f"Epoch [{epoch + 1}/{total_epochs}], Loss: {epoch_loss / dataloader_len:.4f}, Time: {epoch_time:.2f} seconds")
+
+def save_gradient_norm_plot(epoch, gradient_norms, save_dir):
+    """Save a plot of gradient norms over the batches in an epoch."""
+    os.makedirs(save_dir, exist_ok=True)
+    plt.figure(figsize=(10, 6))
+    plt.plot(gradient_norms, label="Gradient Norm")
+    plt.xlabel("Batch Index")
+    plt.ylabel("Gradient Norm")
+    plt.title(f"Gradient Norm Fluctuations (Epoch {epoch + 1})")
+    plt.legend()
+    plt.grid(True)
+    plot_path = os.path.join(save_dir, f"gradient_norms_epoch_{epoch + 1}.png")
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Gradient norm plot saved to {plot_path}")
 
 def validate_model(model, val_dataloader, criterion, device):
     model.eval()
