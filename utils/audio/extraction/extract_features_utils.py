@@ -53,36 +53,52 @@ def smooth_features(features):
 
 def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_coeff=187,
                                  pad_signal=True, padding_mode="reflect", trim_padded=False):
+     # Pad the signal if desired.
     if pad_signal:
         pad = frame_length // 2
         y_padded = np.pad(y, pad_width=pad, mode=padding_mode)
     else:
         y_padded = y
 
+    # Frame the (padded) signal.
     frames = librosa.util.frame(y_padded, frame_length=frame_length, hop_length=hop_length)
-    
+
+    # Optionally trim frames that come from padded regions.
     if pad_signal and trim_padded:
         num_frames = frames.shape[1]
+        # The starting index of each frame in the padded signal.
         start_indices = np.arange(num_frames) * hop_length
+        # A frame is fully valid if it lies entirely within the region [pad, len(y)+pad).
         valid_idx = np.where((start_indices >= pad) & (start_indices + frame_length <= len(y) + pad))[0]
         frames = frames[:, valid_idx]
 
+    # Remove DC offset per frame.
     frames = frames - np.mean(frames, axis=0, keepdims=True)
-    
+
+    # Apply Hann window.
     hann_window = np.hanning(frame_length)
     windowed_frames = frames * hann_window[:, np.newaxis]
-    
+
     autocorr_list = []
     for frame in windowed_frames.T:
+        # Compute full autocorrelation for this frame.
         full_corr = np.correlate(frame, frame, mode='full')
-        mid = frame_length - 1 
-        wanted = full_corr[mid: mid + num_autocorr_coeff]
+        mid = frame_length - 1  # Zero-lag index.
+        # Extract `num_autocorr_coeff + 1` to include the first column initially
+        wanted = full_corr[mid: mid + num_autocorr_coeff + 1]
+        # Normalize by the zero-lag (energy) if nonzero.
         if wanted[0] != 0:
             wanted = wanted / wanted[0]
         autocorr_list.append(wanted)
 
+    # Convert list to array and transpose so that shape is (num_autocorr_coeff + 1, num_valid_frames)
     autocorr_features = np.array(autocorr_list).T
+
+    # Remove the first coefficient to avoid redundancy (always 1 in first dimension if you dont)
+    autocorr_features = autocorr_features[1:, :]
+
     return autocorr_features
+
 
 
 
