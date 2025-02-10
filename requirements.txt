@@ -5,21 +5,14 @@ python>=3.9
 torch  # Ensure this is installed with the correct CUDA toolkit version for your system with the correct cudnn
 torchvision
 torchaudio
-
 # Data Processing
 numpy
 pandas
-
 # Audio Processing
 librosa
 scipy
-
-# Computer Vision
-opencv-python
 matplotlib
-
 # Video Processing
 ffmpeg  # Note: Windows users need to manually install ffmpeg.exe, Linux users should add it globally or set the path in config
-
 # Other Utilities
 tqdm
