@@ -96,11 +96,21 @@ def extract_overlapping_autocorr(y, sr, frame_length, hop_length, num_autocorr_c
 
     # Remove the first coefficient to avoid redundancy (always 1 in first dimension if you dont)
     autocorr_features = autocorr_features[1:, :]
-
+                                     
+    autocorr_features = fix_edge_frames_autocorr(autocorr_features)
+                                     
     return autocorr_features
 
 
-
+def fix_edge_frames_autocorr(autocorr_features, zero_threshold=1e-7):
+    """If the first or last frame is near all-zero, replicate from adjacent frames."""
+    # Check first frame energy
+    if np.all(np.abs(autocorr_features[:, 0]) < zero_threshold):
+        autocorr_features[:, 0] = autocorr_features[:, 1]
+    # Check last frame energy
+    if np.all(np.abs(autocorr_features[:, -1]) < zero_threshold):
+        autocorr_features[:, -1] = autocorr_features[:, -2]
+    return autocorr_features
 
 
 def extract_autocorrelation_features(
