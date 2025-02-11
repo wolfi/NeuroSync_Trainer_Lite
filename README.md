@@ -1,5 +1,8 @@
 # NeuroSync Trainer Lite
 
+## New sample open source anonymous dataset available
+### [**Sample dataset (anonymized)**](https://huggingface.co/datasets/AnimaVR/Neurosync_Audio2Face_Dataset) 
+
 ## Overview
 
 **NeuroSync Trainer Lite** is an Open Source Audio2Face tool for training an **audio-to-face blendshape transformer model**, enabling the generation of facial animation from audio input. This is useful for real-time applications like **virtual avatars, game characters, and animation pipelines**.
