@@ -1,7 +1,7 @@
 # NeuroSync Trainer Lite
 
 ## New sample open source anonymous dataset available
-### [**Sample dataset (anonymized)**](https://huggingface.co/datasets/AnimaVR/Neurosync_Audio2Face_Dataset) 
+### [**Sample dataset from Huggingface**](https://huggingface.co/datasets/AnimaVR/Neurosync_Audio2Face_Dataset) 
 
 ## Overview
 
