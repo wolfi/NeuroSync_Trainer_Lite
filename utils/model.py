@@ -11,7 +11,7 @@ import torch.nn.functional as F
 # Global Positional Encoding
 # -------------------------------------------------------------------------------------------
 class GlobalPositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=10000, use_global_positional_encoding=True, use_rope=False):
+    def __init__(self, d_model, max_len=10000, use_global_positional_encoding=True, use_rope=True):
         super(GlobalPositionalEncoding, self).__init__()
         self.use_global_positional_encoding = use_global_positional_encoding
         self.use_rope = use_rope
@@ -57,7 +57,7 @@ class GlobalPositionalEncoding(nn.Module):
 # -------------------------------------------------------------------------------------------
 # Rotary Positional Embedding (RoPE) for Local Attention
 # -------------------------------------------------------------------------------------------
-def apply_rope_qk(q, k, use_local_positional_encoding=False):
+def apply_rope_qk(q, k, use_local_positional_encoding=True):
     if not use_local_positional_encoding:
         return q, k  # Return unmodified q, k if RoPE is disabled
 
