@@ -1,5 +1,11 @@
 # NeuroSync Trainer Lite
 
+## RoPe + Global/Local positional encoding.
+
+Turns out, RoPe and combining global and local positioning is yielding much better results. 
+
+They are enabled now in the trainer, just update your code. For now, check that these bools are also set to True in the api's model.py too when testing (it will be default soon after the model is updated on huggingface)
+
 ## New open source anonymous dataset available
 ### [**Sample dataset from Huggingface**](https://huggingface.co/datasets/AnimaVR/Neurosync_Audio2Face_Dataset) 
 
