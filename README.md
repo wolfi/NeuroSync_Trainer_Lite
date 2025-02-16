@@ -1,5 +1,11 @@
 # NeuroSync Trainer Lite
 
+## Info sheet added (it's a paper, but not a paper - if you know what I mean)
+
+[**Download the info sheet here**](https://drive.google.com/file/d/1U9pvs_FY1L-cnSkWvnkbSPe0VVa8PZ8b/view?usp=drive_link)
+
+I have been asked for more technically information, please see above.
+
 ## RoPe + Global/Local positional encoding.
 
 Turns out, RoPe and combining global and local positioning is yielding much better results. 
