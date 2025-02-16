@@ -4,7 +4,7 @@
 
 [**Download the info sheet here**](https://drive.google.com/file/d/1U9pvs_FY1L-cnSkWvnkbSPe0VVa8PZ8b/view?usp=drive_link)
 
-I have been asked for more technically information, please see above.
+I have been asked for more technical information, please see above.
 
 ## RoPe + Global/Local positional encoding.
 
