@@ -61,7 +61,32 @@ def save_gradient_norm_plot(epoch, gradient_norms, save_dir):
 
 
 
-def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip, batch_step=0, pbar=None, total_epochs=None):
+###############################################################################
+#                 Single-GPU Training with Mixed Precision (AMP)             #
+###############################################################################
+def train_one_epoch(
+    epoch,
+    model,
+    dataloader,
+    criterion,
+    optimizer,
+    device,
+    clip,
+    batch_step=0,
+    pbar=None,
+    total_epochs=None,
+    use_amp=False,              # <-- ADDED: whether to enable mixed precision
+    grad_scaler=None            # <-- ADDED: the torch.cuda.amp.GradScaler object
+):
+    """
+    Trains the model for one epoch on a single GPU, optionally using mixed precision.
+    
+    :param use_amp:    If True, use automatic mixed precision.
+    :param grad_scaler: A torch.cuda.amp.GradScaler() to scale/unscale gradients if use_amp=True.
+    """
+    if use_amp and grad_scaler is None:     # <-- ADDED
+        raise ValueError("use_amp=True but no GradScaler was provided!")  # <-- ADDED
+
     model.train()
     epoch_loss = 0
     start_time = time.time()
@@ -73,16 +98,44 @@ def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip
         src, trg = src.to(device), trg.to(device)
 
         optimizer.zero_grad()
-        output = model(src)
-        current_step = batch_step + (epoch * len(dataloader)) + batch_idx
-        loss = criterion(output, trg, current_step=current_step, total_steps=total_steps)
-        loss.backward()
 
-        total_norm = calculate_gradient_norm(model)
+        #--------------------------#
+        #    Mixed Precision      #
+        #--------------------------#
+        # Instead of: with torch.cuda.amp.autocast(enabled=use_amp):
+        # we now use the new style: with torch.amp.autocast(device_type='cuda', enabled=use_amp):
+        # to avoid the FutureWarning.
+        with torch.amp.autocast(device_type='cuda', enabled=use_amp):  # <-- CHANGED
+            output = model(src)
+            current_step = batch_step + (epoch * len(dataloader)) + batch_idx
+            loss = criterion(output, trg, current_step=current_step, total_steps=total_steps)
+
+        if use_amp:  # <-- ADDED
+            # 1) Scale the loss
+            grad_scaler.scale(loss).backward()
+
+            # 2) Unscale the gradients for things like grad_norm calculation or clipping
+            grad_scaler.unscale_(optimizer)
+
+            total_norm = calculate_gradient_norm(model)
+
+            # Clip after unscaling
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+
+            # 3) Step the optimizer
+            grad_scaler.step(optimizer)
+
+            # 4) Update the scale for next iteration
+            grad_scaler.update()
+
+        else:
+            # Normal FP32 training
+            loss.backward()
+            total_norm = calculate_gradient_norm(model)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+            optimizer.step()
+
         print_training_progress(batch_idx, total_norm, loss.item(), batch_step, epoch, total_epochs, len(dataloader), pbar)
-
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
-        optimizer.step()
 
         gradient_norms.append(total_norm)
         epoch_loss += loss.item()
@@ -91,10 +144,13 @@ def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip
     end_time = time.time()
     print_epoch_summary(epoch, total_epochs, epoch_loss, len(dataloader), end_time - start_time)
 
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(
+        epoch,
+        gradient_norms,
+        save_dir="dataset/validation_plots/gradient_norms"
+    )
 
     return batch_step
-
 
 
 
