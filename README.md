@@ -1,9 +1,5 @@
 # NeuroSync Trainer Lite
 
-## **Mixed Precision**
-
-4 - 6 x faster training time from mixed precision. Still testing, should be fine. :)
-
 ## Info sheet added (it's a paper, but not a paper - if you know what I mean)
 
 [**Download the info sheet here**](https://drive.google.com/file/d/1U9pvs_FY1L-cnSkWvnkbSPe0VVa8PZ8b/view?usp=drive_link)
