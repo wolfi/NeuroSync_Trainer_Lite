@@ -8,9 +8,8 @@ import os
 import multiprocessing
 from tqdm import tqdm
 import torch
-from torch.cuda.amp import GradScaler  # <-- Added: Import GradScaler for AMP
+from torch.cuda.amp import GradScaler  
 
-# Assuming these are in the same directory or a proper package:
 from config import training_config as config
 from utils.training_utils import (
     count_parameters,
