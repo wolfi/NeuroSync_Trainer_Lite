@@ -1,17 +1,21 @@
 # This software is licensed under a **dual-license model**
 # For individuals and businesses earning **under $1M per year**, this software is licensed under the **MIT License**
 # Businesses or organizations with **annual revenue of $1,000,000 or more** must obtain permission to use this software commercially.
+#!/usr/bin/env python
+
 
 import os
 import multiprocessing
 from tqdm import tqdm
 import torch
+from torch.cuda.amp import GradScaler  # <-- Added: Import GradScaler for AMP
 
+# Assuming these are in the same directory or a proper package:
 from config import training_config as config
 from utils.training_utils import (
     count_parameters,
     train_one_epoch,
-    train_one_epoch_multi_gpu_2,   # 2-GPU
+    train_one_epoch_multi_gpu,     # 2-GPU
     train_one_epoch_multi_gpu_3,   # 3-GPU
     train_one_epoch_multi_gpu_4,   # 4-GPU
     init_weights
@@ -27,7 +31,7 @@ from utils.checkpoint_utils import (
 )
 from dataset.dataset import (
     prepare_dataloader,
-    prepare_dataloader_with_split # wip for validation, use the validation plots vs ground truth from data not in dataset for now (provided)
+    prepare_dataloader_with_split
 )
 
 
@@ -42,6 +46,7 @@ def train_model(
     optimizer,
     scheduler,
     devices,
+    scaler,                 # <-- Added: scaler parameter for AMP
     use_multi_gpu=False,
     start_epoch=0,
     batch_step=0
@@ -50,11 +55,11 @@ def train_model(
     General-purpose training loop that decides whether to use single-GPU 
     or one of the multi-GPU routines (2, 3, or 4) based on config['num_gpus'].
     """
-
     n_epochs = config['n_epochs']
     total_batches = n_epochs * len(dataloader)
     lock = multiprocessing.Lock()
-    
+
+    # Print param count for the main model
     count_parameters(model_0)
 
     # devices[0] is always the primary device
@@ -66,7 +71,7 @@ def train_model(
             if use_multi_gpu:
                 # Depending on config['num_gpus'], call the appropriate routine
                 if config['num_gpus'] == 2 and (model_1 is not None):
-                    batch_step = train_one_epoch_multi_gpu_2(
+                    batch_step = train_one_epoch_multi_gpu(
                         epoch,
                         model_0=model_0,
                         model_1=model_1,
@@ -79,6 +84,7 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
+                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 elif config['num_gpus'] == 3 and (model_1 is not None) and (model_2 is not None):
                     batch_step = train_one_epoch_multi_gpu_3(
@@ -96,6 +102,7 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
+                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 elif config['num_gpus'] == 4 and (model_1 is not None) and (model_2 is not None) and (model_3 is not None):
                     batch_step = train_one_epoch_multi_gpu_4(
@@ -115,6 +122,7 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
+                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 else:
                     # Fallback: single GPU if 'num_gpus' is unsupported or 
@@ -129,7 +137,8 @@ def train_model(
                         clip=5.0,
                         batch_step=batch_step,
                         pbar=pbar,
-                        total_epochs=n_epochs
+                        total_epochs=n_epochs,
+                        scaler=scaler  # <-- Pass scaler to single-GPU function
                     )
             else:
                 # Single-GPU training
@@ -143,7 +152,8 @@ def train_model(
                     clip=5.0,
                     batch_step=batch_step,
                     pbar=pbar,
-                    total_epochs=n_epochs
+                    total_epochs=n_epochs,
+                    scaler=scaler  # <-- Pass scaler to single-GPU function
                 )
 
             # Step the scheduler after each epoch
@@ -161,7 +171,7 @@ def train_model(
 
 if __name__ == "__main__":
     # If you'd like to manually specify which GPUs are visible:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
     torch.cuda.empty_cache()
 
@@ -194,6 +204,9 @@ if __name__ == "__main__":
     # Prepare loss, optimizer, scheduler
     criterion, optimizer, scheduler = prepare_training_components(config, model_0)
 
+    # Initialize GradScaler for mixed precision training
+    scaler = GradScaler()  # <-- Added: Create scaler instance
+
     # Check for existing checkpoint (resume mode)
     start_epoch, batch_step = 0, 0
     if config['mode'] == 'resume' and os.path.exists(config['checkpoint_path']):
@@ -219,7 +232,7 @@ if __name__ == "__main__":
         if model_3 is not None:
             model_3.load_state_dict(model_0.state_dict())
 
-    # Run training
+    # Run training, passing the scaler to the training loop
     train_model(
         config,
         model_0,
@@ -231,7 +244,10 @@ if __name__ == "__main__":
         optimizer,
         scheduler,
         devices=devices,
+        scaler=scaler,  
         use_multi_gpu=use_multi_gpu,
         start_epoch=start_epoch,
         batch_step=batch_step
     )
+
+
