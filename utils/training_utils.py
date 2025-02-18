@@ -5,8 +5,16 @@ import torch
 import time
 import matplotlib.pyplot as plt
 import os
+import torch.distributed as dist
+# from torch.nn.utils import parameters_to_vector, vector_to_parameters
+from torch.cuda.amp import autocast, GradScaler  # <-- Import AMP components
 
-def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip, batch_step=0, pbar=None, total_epochs=None):
+
+def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip, batch_step=0, pbar=None, total_epochs=None, scaler=None):
+    """
+    Training loop modified for mixed precision.
+    Note: 'scaler' is a torch.cuda.amp.GradScaler instance passed from the caller.
+    """
     model.train()
     epoch_loss = 0
     start_time = time.time()
@@ -18,33 +26,48 @@ def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip
         src, trg = src.to(device), trg.to(device)
 
         optimizer.zero_grad()
-        output = model(src)
-        current_step = batch_step + (epoch * len(dataloader)) + batch_idx
-        loss = criterion(output, trg, current_step=current_step, total_steps=total_steps)
-        loss.backward()
+        
+        # Wrap forward pass with autocast for mixed precision
+        with autocast():
+            output = model(src)
+            current_step = batch_step + (epoch * len(dataloader)) + batch_idx
+            loss = criterion(output, trg, current_step=current_step, total_steps=total_steps)
+        
+        # Use the GradScaler to scale the loss and perform the backward pass
+        scaler.scale(loss).backward()
+        
+        # Unscale the gradients before clipping (optional but recommended)
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+        
+        # Step the optimizer through the scaler and update it
+        scaler.step(optimizer)
+        scaler.update()
 
+        # Calculate gradient norm after updating (if needed)
         total_norm = calculate_gradient_norm(model)
         print_training_progress(batch_idx, total_norm, loss.item(), batch_step, epoch, total_epochs, len(dataloader), pbar)
-
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
-        optimizer.step()
 
         gradient_norms.append(total_norm)
         epoch_loss += loss.item()
         batch_step += 1
 
+        if pbar is not None:
+            pbar.update(1)
+
     end_time = time.time()
     print_epoch_summary(epoch, total_epochs, epoch_loss, len(dataloader), end_time - start_time)
 
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(
+        epoch, gradient_norms, 
+        save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms"
+    )
 
     return batch_step
 
-
-### multi GPU testing 
-def train_one_epoch_multi_gpu_2(
+def train_one_epoch_multi_gpu(
     epoch, model_0, model_1, dataloader, criterion, optimizer,
-    device0, device1, clip, batch_step=0, pbar=None, total_epochs=None
+    device0, device1, clip, batch_step=0, pbar=None, total_epochs=None, scaler=None  # <-- Added scaler parameter
 ):
     model_0.train()
     model_1.train()
@@ -59,10 +82,8 @@ def train_one_epoch_multi_gpu_2(
     data_iter = iter(dataloader)
 
     for step_idx in range(steps_per_epoch):
-        step_start = time.time()
-
-        # 1. Fetch two batches
         try:
+            # 1. Fetch two batches
             src_0, trg_0 = next(data_iter)
             src_1, trg_1 = next(data_iter)
         except StopIteration:
@@ -74,19 +95,21 @@ def train_one_epoch_multi_gpu_2(
         src_1, trg_1 = src_1.to(device1, non_blocking=True), trg_1.to(device1, non_blocking=True)
 
         # 3. Zero only model_0's gradients before computing new ones
-        optimizer.zero_grad()  # ✅ Correctly zero only model_0
+        optimizer.zero_grad()
 
         # 4. Compute current step
         current_step = batch_step + (epoch * steps_per_epoch) + step_idx
 
-        # 5. Forward/backward passes on each GPU model
-        output_0 = model_0(src_0)
-        loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
-        loss_0.backward()
+        # 5. Forward/backward passes on each GPU model (using AMP)
+        with torch.cuda.amp.autocast():
+            output_0 = model_0(src_0)
+            loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_0).backward()
 
-        output_1 = model_1(src_1)
-        loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
-        loss_1.backward()
+        with torch.cuda.amp.autocast():
+            output_1 = model_1(src_1)
+            loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_1).backward()
 
         # 6. Synchronize GPUs to ensure all operations complete before averaging gradients
         torch.cuda.synchronize(device0)
@@ -106,8 +129,8 @@ def train_one_epoch_multi_gpu_2(
         if len(grad_0_list) > 0:
             grad_0_flat = torch.cat(grad_0_list)
             grad_1_flat = torch.cat(grad_1_list).to(device0)
+            # Average the gradients from both GPUs
             grad_0_flat.add_(grad_1_flat).div_(2.0)
-
             offset = 0
             for (p0, p1) in valid_params:
                 length = p0.numel()
@@ -118,19 +141,23 @@ def train_one_epoch_multi_gpu_2(
         torch.cuda.synchronize(device0)
         torch.cuda.synchronize(device1)
 
-        # 9. Compute gradient norm before clipping
+        # --- Key Change: Unscale before computing gradient norm and clipping ---
+        scaler.unscale_(optimizer)  # Unscale gradients so that they are in the correct magnitude
+
+        # 9. Compute gradient norm before clipping (now on unscaled gradients)
         raw_total_norm = calculate_gradient_norm(model_0)
         gradient_norms.append(raw_total_norm)
 
-        # 10. Clip gradients, optimizer step, and sync models
+        # 10. Clip gradients and perform the optimizer step using AMP
         torch.nn.utils.clip_grad_norm_(model_0.parameters(), clip)
-        optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
 
         # 11. Sync updated parameters from model_0 to model_1
         for param_0, param_1 in zip(model_0.parameters(), model_1.parameters()):
             param_1.data.copy_(param_0.data.to(device1))
 
-        # 12. ✅ Reset model_1's gradients after updating model_0
+        # 12. Reset model_1's gradients after updating model_0
         for p in model_1.parameters():
             if p.grad is not None:
                 p.grad.zero_()
@@ -153,14 +180,14 @@ def train_one_epoch_multi_gpu_2(
     # Save the gradient norm plot for the entire epoch
     save_gradient_norm_plot(
         epoch, gradient_norms,
-        save_dir="dataset/validation_plots/gradient_norms"
+        save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms"
     )
 
     return batch_step
 
 def train_one_epoch_multi_gpu_3(
     epoch, model_0, model_1, model_2, dataloader, criterion, optimizer,
-    device0, device1, device2, clip, batch_step=0, pbar=None, total_epochs=None
+    device0, device1, device2, clip, batch_step=0, pbar=None, total_epochs=None, scaler=None  # <-- Added scaler
 ):
     model_0.train()
     model_1.train()
@@ -175,10 +202,8 @@ def train_one_epoch_multi_gpu_3(
     data_iter = iter(dataloader)
 
     for step_idx in range(steps_per_epoch):
-        step_start = time.time()
-
-        # 1. Fetch three batches
         try:
+            # 1. Fetch three batches
             src_0, trg_0 = next(data_iter)
             src_1, trg_1 = next(data_iter)
             src_2, trg_2 = next(data_iter)
@@ -186,36 +211,37 @@ def train_one_epoch_multi_gpu_3(
             print(f"Dropping leftover mini-batches at step {step_idx}.")
             break
 
-        # 2. Move to GPUs
+        # 2. Move batches to GPUs
         src_0, trg_0 = src_0.to(device0, non_blocking=True), trg_0.to(device0, non_blocking=True)
         src_1, trg_1 = src_1.to(device1, non_blocking=True), trg_1.to(device1, non_blocking=True)
         src_2, trg_2 = src_2.to(device2, non_blocking=True), trg_2.to(device2, non_blocking=True)
 
-        # 3. Zero gradients for model_0 only
+        # 3. Zero gradients for model_0
         optimizer.zero_grad()
-
-        # 4. Compute current step
         current_step = batch_step + (epoch * steps_per_epoch) + step_idx
 
-        # 5. Forward/backward passes
-        output_0 = model_0(src_0)
-        loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
-        loss_0.backward()
+        # 4. Forward/backward passes with AMP for each model
+        with torch.cuda.amp.autocast():
+            output_0 = model_0(src_0)
+            loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_0).backward()
 
-        output_1 = model_1(src_1)
-        loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
-        loss_1.backward()
+        with torch.cuda.amp.autocast():
+            output_1 = model_1(src_1)
+            loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_1).backward()
 
-        output_2 = model_2(src_2)
-        loss_2 = criterion(output_2, trg_2, current_step=current_step, total_steps=total_steps)
-        loss_2.backward()
+        with torch.cuda.amp.autocast():
+            output_2 = model_2(src_2)
+            loss_2 = criterion(output_2, trg_2, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_2).backward()
 
-        # 6. Synchronize GPUs
+        # 5. Synchronize GPUs
         torch.cuda.synchronize(device0)
         torch.cuda.synchronize(device1)
         torch.cuda.synchronize(device2)
 
-        # 7. Gradient Averaging BEFORE Zeroing
+        # 6. Gradient Averaging BEFORE Zeroing
         grad_0_list, grad_1_list, grad_2_list = [], [], []
         valid_params = []
 
@@ -230,9 +256,7 @@ def train_one_epoch_multi_gpu_3(
             grad_0_flat = torch.cat(grad_0_list)
             grad_1_flat = torch.cat(grad_1_list).to(device0)
             grad_2_flat = torch.cat(grad_2_list).to(device0)
-
             grad_0_flat.add_(grad_1_flat).add_(grad_2_flat).div_(3.0)
-
             offset = 0
             for p0, p1, p2 in valid_params:
                 length = p0.numel()
@@ -241,16 +265,22 @@ def train_one_epoch_multi_gpu_3(
 
         torch.cuda.synchronize(device0)
 
-        # 8. Clip gradients and update model_0
-        torch.nn.utils.clip_grad_norm_(model_0.parameters(), clip)
-        optimizer.step()
+        # --- Unscale before computing norm and clipping ---
+        scaler.unscale_(optimizer)
+        raw_total_norm = calculate_gradient_norm(model_0)
+        gradient_norms.append(raw_total_norm)
 
-        # 9. Sync updated parameters
+        # 7. Clip gradients and perform optimizer step using AMP
+        torch.nn.utils.clip_grad_norm_(model_0.parameters(), clip)
+        scaler.step(optimizer)
+        scaler.update()
+
+        # 8. Sync updated parameters from model_0 to model_1 and model_2
         for param_0, param_1, param_2 in zip(model_0.parameters(), model_1.parameters(), model_2.parameters()):
             param_1.data.copy_(param_0.data.to(device1))
             param_2.data.copy_(param_0.data.to(device2))
 
-        # 10. Zero gradients for model_1 and model_2 AFTER updating
+        # 9. Reset gradients for model_1 and model_2 after updating
         for p in model_1.parameters():
             if p.grad is not None:
                 p.grad.zero_()
@@ -258,12 +288,10 @@ def train_one_epoch_multi_gpu_3(
             if p.grad is not None:
                 p.grad.zero_()
 
-        # 11. Compute loss
         batch_loss = (loss_0.item() + loss_1.item() + loss_2.item()) / 3.0
         epoch_loss += batch_loss
-        gradient_norms.append(calculate_gradient_norm(model_0))
 
-        print(f"Step [{step_idx+1}/{steps_per_epoch}], Loss: {batch_loss:.4f}")
+        print(f"Step [{step_idx+1}/{steps_per_epoch}], Loss: {batch_loss:.4f}, Grad Norm (pre-clip): {raw_total_norm:.4f}")
 
         if pbar is not None:
             pbar.update(1)
@@ -271,11 +299,12 @@ def train_one_epoch_multi_gpu_3(
         batch_step += 1
 
     print_epoch_summary(epoch, total_epochs, epoch_loss, steps_per_epoch, time.time() - start_time)
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(
+        epoch, gradient_norms,
+        save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms"
+    )
 
     return batch_step
-
-
 
 def train_one_epoch_multi_gpu_4(
     epoch,
@@ -293,14 +322,9 @@ def train_one_epoch_multi_gpu_4(
     clip,
     batch_step=0,
     pbar=None,
-    total_epochs=None
+    total_epochs=None,
+    scaler=None  # <-- Added scaler
 ):
-    """
-    4-GPU training routine where each GPU processes one mini-batch.
-    We vectorize the gradient averaging on device0 (flatten & sum).
-    If we can't fetch exactly 4 batches at any step, we break out
-    to effectively 'drop' the leftover.
-    """
     model_0.train()
     model_1.train()
     model_2.train()
@@ -316,10 +340,8 @@ def train_one_epoch_multi_gpu_4(
     data_iter = iter(dataloader)
 
     for step_idx in range(steps_per_epoch):
-        step_start = time.time()
-
-        # 1. Fetch four batches
         try:
+            # 1. Fetch four batches
             src_0, trg_0 = next(data_iter)
             src_1, trg_1 = next(data_iter)
             src_2, trg_2 = next(data_iter)
@@ -334,39 +356,40 @@ def train_one_epoch_multi_gpu_4(
         src_2, trg_2 = src_2.to(device2, non_blocking=True), trg_2.to(device2, non_blocking=True)
         src_3, trg_3 = src_3.to(device3, non_blocking=True), trg_3.to(device3, non_blocking=True)
 
-        # 3. Zero gradients only for model_0
+        # 3. Zero gradients for model_0
         optimizer.zero_grad()
-
-        # 4. Compute current step
         current_step = batch_step + (epoch * steps_per_epoch) + step_idx
 
-        # 5. Forward/backward passes
-        output_0 = model_0(src_0)
-        loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
-        loss_0.backward()
+        # 4. Forward/backward passes with AMP for each model
+        with torch.cuda.amp.autocast():
+            output_0 = model_0(src_0)
+            loss_0 = criterion(output_0, trg_0, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_0).backward()
 
-        output_1 = model_1(src_1)
-        loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
-        loss_1.backward()
+        with torch.cuda.amp.autocast():
+            output_1 = model_1(src_1)
+            loss_1 = criterion(output_1, trg_1, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_1).backward()
 
-        output_2 = model_2(src_2)
-        loss_2 = criterion(output_2, trg_2, current_step=current_step, total_steps=total_steps)
-        loss_2.backward()
+        with torch.cuda.amp.autocast():
+            output_2 = model_2(src_2)
+            loss_2 = criterion(output_2, trg_2, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_2).backward()
 
-        output_3 = model_3(src_3)
-        loss_3 = criterion(output_3, trg_3, current_step=current_step, total_steps=total_steps)
-        loss_3.backward()
+        with torch.cuda.amp.autocast():
+            output_3 = model_3(src_3)
+            loss_3 = criterion(output_3, trg_3, current_step=current_step, total_steps=total_steps)
+        scaler.scale(loss_3).backward()
 
-        # 6. Synchronize GPUs
+        # 5. Synchronize GPUs
         torch.cuda.synchronize(device0)
         torch.cuda.synchronize(device1)
         torch.cuda.synchronize(device2)
         torch.cuda.synchronize(device3)
 
-        # 7. Gradient Averaging BEFORE Zeroing
+        # 6. Gradient Averaging BEFORE Zeroing
         grad_0_list, grad_1_list, grad_2_list, grad_3_list = [], [], [], []
         valid_params = []
-
         for p0, p1, p2, p3 in zip(
             model_0.parameters(),
             model_1.parameters(),
@@ -385,9 +408,7 @@ def train_one_epoch_multi_gpu_4(
             grad_1_flat = torch.cat(grad_1_list).to(device0)
             grad_2_flat = torch.cat(grad_2_list).to(device0)
             grad_3_flat = torch.cat(grad_3_list).to(device0)
-
             grad_0_flat.add_(grad_1_flat).add_(grad_2_flat).add_(grad_3_flat).div_(4.0)
-
             offset = 0
             for p0, p1, p2, p3 in valid_params:
                 length = p0.numel()
@@ -396,11 +417,17 @@ def train_one_epoch_multi_gpu_4(
 
         torch.cuda.synchronize(device0)
 
-        # 8. Clip gradients and update model_0
-        torch.nn.utils.clip_grad_norm_(model_0.parameters(), clip)
-        optimizer.step()
+        # --- Unscale gradients before computing norm and clipping ---
+        scaler.unscale_(optimizer)
+        raw_total_norm = calculate_gradient_norm(model_0)
+        gradient_norms.append(raw_total_norm)
 
-        # 9. Sync updated parameters from model_0 to model_1, model_2, model_3
+        # 7. Clip gradients and update model_0 with AMP
+        torch.nn.utils.clip_grad_norm_(model_0.parameters(), clip)
+        scaler.step(optimizer)
+        scaler.update()
+
+        # 8. Sync updated parameters from model_0 to model_1, model_2, and model_3
         for param_0, param_1, param_2, param_3 in zip(
             model_0.parameters(),
             model_1.parameters(),
@@ -411,7 +438,7 @@ def train_one_epoch_multi_gpu_4(
             param_2.data.copy_(param_0.data.to(device2))
             param_3.data.copy_(param_0.data.to(device3))
 
-        # 10. Zero gradients for model_1, model_2, model_3 AFTER updating
+        # 9. Zero gradients for models 1, 2, and 3 after updating
         for p in model_1.parameters():
             if p.grad is not None:
                 p.grad.zero_()
@@ -422,12 +449,10 @@ def train_one_epoch_multi_gpu_4(
             if p.grad is not None:
                 p.grad.zero_()
 
-        # 11. Compute loss
         batch_loss = (loss_0.item() + loss_1.item() + loss_2.item() + loss_3.item()) / 4.0
         epoch_loss += batch_loss
         gradient_norms.append(calculate_gradient_norm(model_0))
 
-        # 12. Print step info
         print(f"Step [{step_idx+1}/{steps_per_epoch}], Loss: {batch_loss:.4f}")
 
         if pbar is not None:
@@ -436,9 +461,14 @@ def train_one_epoch_multi_gpu_4(
         batch_step += 1
 
     print_epoch_summary(epoch, total_epochs, epoch_loss, steps_per_epoch, time.time() - start_time)
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(
+        epoch, gradient_norms,
+        save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms"
+    )
 
     return batch_step
+
+
 
 
 
