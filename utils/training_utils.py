@@ -91,7 +91,7 @@ def train_one_epoch(epoch, model, dataloader, criterion, optimizer, device, clip
     end_time = time.time()
     print_epoch_summary(epoch, total_epochs, epoch_loss, len(dataloader), end_time - start_time)
 
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
 
     return batch_step
 
@@ -212,7 +212,7 @@ def train_one_epoch_multi_gpu(
     # Save the gradient norm plot for the entire epoch
     save_gradient_norm_plot(
         epoch, gradient_norms,
-        save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms"
+        save_dir="dataset/validation_plots/gradient_norms"
     )
 
     return batch_step
@@ -330,7 +330,7 @@ def train_one_epoch_multi_gpu_3(
         batch_step += 1
 
     print_epoch_summary(epoch, total_epochs, epoch_loss, steps_per_epoch, time.time() - start_time)
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
 
     return batch_step
 
@@ -495,7 +495,7 @@ def train_one_epoch_multi_gpu_4(
         batch_step += 1
 
     print_epoch_summary(epoch, total_epochs, epoch_loss, steps_per_epoch, time.time() - start_time)
-    save_gradient_norm_plot(epoch, gradient_norms, save_dir="/home/xianchi/python/neurosync/trainer/dataset/validation_plots/gradient_norms")
+    save_gradient_norm_plot(epoch, gradient_norms, save_dir="dataset/validation_plots/gradient_norms")
 
     return batch_step
 
