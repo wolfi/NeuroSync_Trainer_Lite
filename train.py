@@ -1,15 +1,9 @@
-# This software is licensed under a **dual-license model**
-# For individuals and businesses earning **under $1M per year**, this software is licensed under the **MIT License**
-# Businesses or organizations with **annual revenue of $1,000,000 or more** must obtain permission to use this software commercially.
 #!/usr/bin/env python
-
 
 import os
 import multiprocessing
 from tqdm import tqdm
 import torch
-from torch.cuda.amp import GradScaler  
-
 from config import training_config as config
 from utils.training_utils import (
     count_parameters,
@@ -45,7 +39,6 @@ def train_model(
     optimizer,
     scheduler,
     devices,
-    scaler,                 # <-- Added: scaler parameter for AMP
     use_multi_gpu=False,
     start_epoch=0,
     batch_step=0
@@ -54,6 +47,7 @@ def train_model(
     General-purpose training loop that decides whether to use single-GPU 
     or one of the multi-GPU routines (2, 3, or 4) based on config['num_gpus'].
     """
+
     n_epochs = config['n_epochs']
     total_batches = n_epochs * len(dataloader)
     lock = multiprocessing.Lock()
@@ -83,7 +77,6 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
-                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 elif config['num_gpus'] == 3 and (model_1 is not None) and (model_2 is not None):
                     batch_step = train_one_epoch_multi_gpu_3(
@@ -101,7 +94,6 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
-                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 elif config['num_gpus'] == 4 and (model_1 is not None) and (model_2 is not None) and (model_3 is not None):
                     batch_step = train_one_epoch_multi_gpu_4(
@@ -121,7 +113,6 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
-                        scaler=scaler  # <-- Pass scaler to multi-GPU function
                     )
                 else:
                     # Fallback: single GPU if 'num_gpus' is unsupported or 
@@ -136,8 +127,7 @@ def train_model(
                         clip=5.0,
                         batch_step=batch_step,
                         pbar=pbar,
-                        total_epochs=n_epochs,
-                        scaler=scaler  # <-- Pass scaler to single-GPU function
+                        total_epochs=n_epochs
                     )
             else:
                 # Single-GPU training
@@ -151,8 +141,7 @@ def train_model(
                     clip=5.0,
                     batch_step=batch_step,
                     pbar=pbar,
-                    total_epochs=n_epochs,
-                    scaler=scaler  # <-- Pass scaler to single-GPU function
+                    total_epochs=n_epochs
                 )
 
             # Step the scheduler after each epoch
@@ -203,9 +192,6 @@ if __name__ == "__main__":
     # Prepare loss, optimizer, scheduler
     criterion, optimizer, scheduler = prepare_training_components(config, model_0)
 
-    # Initialize GradScaler for mixed precision training
-    scaler = GradScaler()  # <-- Added: Create scaler instance
-
     # Check for existing checkpoint (resume mode)
     start_epoch, batch_step = 0, 0
     if config['mode'] == 'resume' and os.path.exists(config['checkpoint_path']):
@@ -231,7 +217,7 @@ if __name__ == "__main__":
         if model_3 is not None:
             model_3.load_state_dict(model_0.state_dict())
 
-    # Run training, passing the scaler to the training loop
+    # Run training
     train_model(
         config,
         model_0,
@@ -243,10 +229,11 @@ if __name__ == "__main__":
         optimizer,
         scheduler,
         devices=devices,
-        scaler=scaler,  
         use_multi_gpu=use_multi_gpu,
         start_epoch=start_epoch,
         batch_step=batch_step
     )
+
+
 
 
