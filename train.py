@@ -61,7 +61,7 @@ def train_model(
     device0 = devices[0]
 
     use_amp = config.get('use_amp', True)  
-    scaler = GradScaler(device_type='cuda') if use_amp else None
+    scaler = GradScaler("cuda") if use_amp else None
 
     # TQDM progress bar
     with tqdm(total=total_batches, desc="Training", dynamic_ncols=True) as pbar:
