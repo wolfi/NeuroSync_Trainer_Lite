@@ -1,6 +1,6 @@
 # NeuroSync Trainer Lite
 
-## Single GPU mixed precison training added for 2x speed improvement.
+## Single + multi GPU mixed precison training added for 2x speed improvement.
 
 Still wip but its working for single gpu - disable it if you have issues.
 
