@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 
 import os
@@ -60,7 +61,8 @@ def train_model(
     device0 = devices[0]
 
     use_amp = config.get('use_amp', True)  
-    scaler = GradScaler() if use_amp else None  
+    scaler = GradScaler() if use_amp else None
+
 
     # TQDM progress bar
     with tqdm(total=total_batches, desc="Training", dynamic_ncols=True) as pbar:
@@ -80,11 +82,9 @@ def train_model(
                         clip=5.0,
                         batch_step=batch_step,
                         pbar=pbar,
-                        total_epochs=n_epochs
-                        # NOTE: you'd also need to modify your multi-GPU funcs to accept
-                        #       use_amp and grad_scaler if you want AMP in multi-GPU 
-                        # use_amp=use_amp,           # <-- if you adapt your multi-gpu code for AMP
-                        # grad_scaler=scaler        # <-- likewise
+                        total_epochs=n_epochs,       
+                        use_amp=use_amp,           
+                        grad_scaler=scaler       
                     )
                 elif config['num_gpus'] == 3 and (model_1 is not None) and (model_2 is not None):
                     batch_step = train_one_epoch_multi_gpu_3(
@@ -101,8 +101,8 @@ def train_model(
                         clip=5.0,
                         batch_step=batch_step,
                         pbar=pbar,
-                        total_epochs=n_epochs
-                        # use_amp=use_amp, grad_scaler=scaler   # <-- if adapted for AMP
+                        total_epochs=n_epochs,
+                        use_amp=use_amp, grad_scaler=scaler   
                     )
                 elif config['num_gpus'] == 4 and (model_1 is not None) and (model_2 is not None) and (model_3 is not None):
                     batch_step = train_one_epoch_multi_gpu_4(
@@ -121,12 +121,10 @@ def train_model(
                         clip=5.0,
                         batch_step=batch_step,
                         pbar=pbar,
-                        total_epochs=n_epochs
-                        # use_amp=use_amp, grad_scaler=scaler   # <-- if adapted for AMP
+                        total_epochs=n_epochs,
+                        use_amp=use_amp, grad_scaler=scaler  
                     )
                 else:
-                    # Fallback: single GPU if 'num_gpus' is unsupported or 
-                    # models for the desired #GPUs weren't actually created
                     batch_step = train_one_epoch(
                         epoch,
                         model=model_0,
@@ -138,8 +136,8 @@ def train_model(
                         batch_step=batch_step,
                         pbar=pbar,
                         total_epochs=n_epochs,
-                        use_amp=use_amp,      # <-- ADDED: pass to single-GPU routine
-                        grad_scaler=scaler    # <-- ADDED
+                        use_amp=use_amp,     
+                        grad_scaler=scaler  
                     )
             else:
                 # Single-GPU training
@@ -154,8 +152,8 @@ def train_model(
                     batch_step=batch_step,
                     pbar=pbar,
                     total_epochs=n_epochs,
-                    use_amp=use_amp,      # <-- ADDED
-                    grad_scaler=scaler    # <-- ADDED
+                    use_amp=use_amp,      
+                    grad_scaler=scaler    
                 )
 
             # Step the scheduler after each epoch
@@ -173,7 +171,7 @@ def train_model(
 
 if __name__ == "__main__":
     # If you'd like to manually specify which GPUs are visible:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
 
     torch.cuda.empty_cache()
 

@@ -269,6 +269,88 @@ class Seq2Seq(nn.Module):
 
 
 class Loss(nn.Module):
+    def __init__(self, delta=1.0, w1=1.0, w2=1.0, w3=1.0):
+        """
+        Args:
+            delta (float): Delta parameter for the Smooth L1 (Huber) loss.
+            w1 (float): Weight for reconstruction loss.
+            w2 (float): Weight for temporal consistency loss.
+            w3 (float): Weight for directional consistency loss.
+        """
+        super(Loss, self).__init__()
+        self.delta = delta
+        self.w1 = w1  # Reconstruction loss weight
+        self.w2 = w2  # Temporal consistency loss weight
+        self.w3 = w3  # Directional consistency loss weight
+        self.rec_loss_fn = nn.SmoothL1Loss(beta=self.delta)
+        
+        # Indices of features/columns that should always be zero.
+        self.zero_indices = [0, 1, 2 ,3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+        # Extra penalty weight for nonzero values in these columns.
+        self.zero_penalty_weight = 10.0
+
+    def forward(self, predictions, targets, current_step=None, total_steps=None):
+        # 1. Reconstruction Loss: Ensure predictions match the targets.
+        rec_loss = self.rec_loss_fn(predictions, targets)
+        
+        # 2. Temporal Consistency Loss: Enforce similar frame-to-frame differences.
+        pred_diff = predictions[:, 1:, :] - predictions[:, :-1, :]  # (B, T-1, F)
+        target_diff = targets[:, 1:, :] - targets[:, :-1, :]          # (B, T-1, F)
+        temp_loss = F.l1_loss(pred_diff, target_diff)
+        
+        # 3. Directional Consistency Loss: Enforce similar directions of change.
+        eps = 1e-8  # small constant to avoid division by zero
+        pred_norm = pred_diff / (pred_diff.norm(dim=-1, keepdim=True) + eps)
+        target_norm = target_diff / (target_diff.norm(dim=-1, keepdim=True) + eps)
+        cos_sim = torch.sum(pred_norm * target_norm, dim=-1)  # (B, T-1)
+        dir_loss = 1 - cos_sim.mean()
+        
+        # 4. Zero Penalty Loss: Penalize nonzero predictions for specified features.
+        # Extract the features (columns) that should always be zero.
+        zero_features = predictions[:, :, self.zero_indices]
+        zero_target = torch.zeros_like(zero_features)
+        zero_loss = F.l1_loss(zero_features, zero_target)
+        
+        # Combine all the loss components.
+        total_loss = (
+            self.w1 * rec_loss +
+            self.w2 * temp_loss +
+            self.w3 * dir_loss +
+            self.zero_penalty_weight * zero_loss
+        )
+        return total_loss
+
+'''
+
+class Loss(nn.Module):
+    def __init__(self, delta=1.0, w1=1.0, w2=1.0, w3=1.0):
+
+        super(Loss, self).__init__()
+        self.delta = delta
+        self.w1 = w1  # reconstruction loss weight
+        self.w2 = w2  # temporal consistency loss weight
+        self.w3 = w3  # directional consistency loss weight
+        self.rec_loss_fn = nn.SmoothL1Loss(beta=self.delta)
+
+    def forward(self, predictions, targets, current_step=None, total_steps=None):
+        rec_loss = self.rec_loss_fn(predictions, targets)
+        pred_diff = predictions[:, 1:, :] - predictions[:, :-1, :]  # (B, T-1, F)
+        target_diff = targets[:, 1:, :] - targets[:, :-1, :]          # (B, T-1, F)
+        temp_loss = F.l1_loss(pred_diff, target_diff)
+        eps = 1e-8  # small constant to avoid division by zero
+        pred_norm = pred_diff / (pred_diff.norm(dim=-1, keepdim=True) + eps)
+        target_norm = target_diff / (target_diff.norm(dim=-1, keepdim=True) + eps)
+        cos_sim = torch.sum(pred_norm * target_norm, dim=-1)  # (B, T-1)
+        dir_loss = 1 - cos_sim.mean()
+    
+        
+        total_loss = self.w1 * rec_loss + self.w2 * temp_loss + self.w3 * dir_loss
+        return total_loss
+
+
+
+
+class Loss(nn.Module):
     def __init__(self, delta=1.0, w1=1.0, w2=1.0, w3=1.0, w4=1.0, 
                  smoothness_anneal_rate=1, enable_smoothness_annealing=False):
         super(Loss, self).__init__()
@@ -377,4 +459,4 @@ class Loss(nn.Module):
         )
 
         return total_loss
-
+'''
