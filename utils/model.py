@@ -265,8 +265,33 @@ class Seq2Seq(nn.Module):
         output = self.decoder(encoder_outputs)
         return output
 
+class Loss(nn.Module):
+    def __init__(self, delta=1.0, w1=1.0, w2=1.0, w3=1.0):
+
+        super(Loss, self).__init__()
+        self.delta = delta
+        self.w1 = w1  # reconstruction loss weight
+        self.w2 = w2  # temporal consistency loss weight
+        self.w3 = w3  # directional consistency loss weight
+        self.rec_loss_fn = nn.SmoothL1Loss(beta=self.delta)
+
+    def forward(self, predictions, targets, current_step=None, total_steps=None):
+        rec_loss = self.rec_loss_fn(predictions, targets)
+        pred_diff = predictions[:, 1:, :] - predictions[:, :-1, :]  # (B, T-1, F)
+        target_diff = targets[:, 1:, :] - targets[:, :-1, :]          # (B, T-1, F)
+        temp_loss = F.l1_loss(pred_diff, target_diff)
+        eps = 1e-8  # small constant to avoid division by zero
+        pred_norm = pred_diff / (pred_diff.norm(dim=-1, keepdim=True) + eps)
+        target_norm = target_diff / (target_diff.norm(dim=-1, keepdim=True) + eps)
+        cos_sim = torch.sum(pred_norm * target_norm, dim=-1)  # (B, T-1)
+        dir_loss = 1 - cos_sim.mean()
+    
+        
+        total_loss = self.w1 * rec_loss + self.w2 * temp_loss + self.w3 * dir_loss
+        return total_loss
 
 
+'''
 
 class Loss(nn.Module):
     def __init__(self, delta=1.0, w1=1.0, w2=1.0, w3=1.0, w4=1.0, 
@@ -377,4 +402,4 @@ class Loss(nn.Module):
         )
 
         return total_loss
-
+'''
