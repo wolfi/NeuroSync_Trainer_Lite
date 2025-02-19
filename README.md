@@ -1,5 +1,9 @@
 # NeuroSync Trainer Lite
 
+## Interpolate slower and faster versions of your data automatically in data_processing.py with def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, include_fast=True, include_slow=False, blend_boundaries=True, blend_frames=30):
+
+Careful, this increases memory usage on the system, a lot.... but it makes fine detail clearer as speed variance is better realised - turn it off if you have 16gb of system memory, use at least 128gb, 256gb > is recommended for larger datasets.
+
 ## Single + multi GPU mixed precison training added for 2x speed improvement.
 
 Still wip but its working - disable it if you have issues.
