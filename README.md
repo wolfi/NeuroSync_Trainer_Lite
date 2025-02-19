@@ -2,7 +2,7 @@
 
 ## Single + multi GPU mixed precison training added for 2x speed improvement.
 
-Still wip but its working for single gpu - disable it if you have issues.
+Still wip but its working - disable it if you have issues.
 
 ## Info sheet added (it's a paper, but not a paper - if you know what I mean)
 
