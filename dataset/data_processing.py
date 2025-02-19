@@ -161,6 +161,8 @@ def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr,
     if include_slow:
         audio_slower = interpolate_slower(audio_features)
         facial_slower = interpolate_slower(facial_data)
+        # Smooth the interpolated facial data to reduce noise.
+        facial_slower = smooth_facial_data(facial_slower)
         audio_versions.append(audio_slower)
         facial_versions.append(facial_slower)
 
