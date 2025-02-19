@@ -287,7 +287,7 @@ class Loss(nn.Module):
         # Indices of features/columns that should always be zero.
         self.zero_indices = [0, 1, 2 ,3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
         # Extra penalty weight for nonzero values in these columns.
-        self.zero_penalty_weight = 10.0
+        self.zero_penalty_weight = 1.0
 
     def forward(self, predictions, targets, current_step=None, total_steps=None):
         # 1. Reconstruction Loss: Ensure predictions match the targets.
