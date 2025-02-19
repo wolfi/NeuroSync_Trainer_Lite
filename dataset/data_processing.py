@@ -105,22 +105,9 @@ def interpolate_slower(data):
     out[-1] = data[-1]
     return out
 
-def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, include_fast=True, include_slow=False):
-    """
-    Loads (or extracts) audio features and facial data, aligns their lengths,
-    and optionally augments the data by adding "fast" and/or "slower" versions.
-    
-    Args:
-        audio_path (str): Path to the audio file.
-        audio_features_csv_path (str): Path to CSV file storing audio features.
-        facial_csv_path (str): Path to the facial data CSV.
-        sr (int): Sample rate for audio processing.
-        include_fast (bool): If True, include a downsampled (fast) version of the data.
-        include_slow (bool): If True, include an interpolated (slower) version of the data.
-    
-    Returns:
-        Tuple of (audio_features, facial_data) as NumPy arrays.
-    """
+def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr,
+                     include_fast=True, include_slow=False, blend_boundaries=True, blend_frames=30):
+
     # Load or extract audio features
     if os.path.exists(audio_features_csv_path):
         print(f"Loading audio features from {audio_features_csv_path}")
@@ -141,7 +128,6 @@ def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, i
         len_facial = len(facial_data)
 
         if len_audio != len_facial:
-            # Figure out which is longer and trim accordingly.
             if len_audio > len_facial:
                 diff = len_audio - len_facial
                 left_trim = diff // 2
@@ -178,11 +164,35 @@ def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, i
         audio_versions.append(audio_slower)
         facial_versions.append(facial_slower)
 
-    # Vertically stack the selected versions.
-    audio_features = np.vstack(audio_versions)
-    facial_data = np.vstack(facial_versions)
+    # Stack the selected versions—either directly or with blended boundaries.
+    if blend_boundaries:
+        audio_features = stack_with_blend(audio_versions, blend_frames)
+        facial_data = stack_with_blend(facial_versions, blend_frames)
+    else:
+        audio_features = np.vstack(audio_versions)
+        facial_data = np.vstack(facial_versions)
 
     return audio_features, facial_data
+
+def stack_with_blend(sequences, blend_frames):
+    """
+    Given a list of arrays (each of shape (T, F)), concatenate them into one continuous array
+    while blending the boundary between successive arrays over `blend_frames` frames.
+    """
+    if not sequences:
+        return None
+    result = sequences[0]
+    for seq in sequences[1:]:
+        # Determine number of frames to blend: ensure we don't exceed the available frames.
+        n = min(blend_frames, result.shape[0], seq.shape[0])
+        if n <= 0:
+            result = np.vstack([result, seq])
+        else:
+            weights1 = np.linspace(1, 0, n).reshape(n, 1)
+            weights2 = np.linspace(0, 1, n).reshape(n, 1)
+            blended = weights1 * result[-n:] + weights2 * seq[:n]
+            result = np.vstack([result[:-n], blended, seq[n:]])
+    return result
 
 
 
