@@ -1,5 +1,11 @@
 # NeuroSync Trainer Lite
 
+## **Loss Variations** (utils/model.py)
+
+Have added a few types of loss you can uncomment and use to check what works best for you, the new type that penalises known zero'd dimensions seems to work well, (if you are zero'ing any dimensions).
+
+Have a play around, I will get around to some better validation soon. ;)
+
 ## Interpolate slower and faster versions of your data automatically in data_processing.py with def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, include_fast=True, include_slow=False, blend_boundaries=True, blend_frames=30):
 
 Careful, this increases memory usage on the system, a lot.... but it makes fine detail clearer as speed variance is better realised - turn it off if you have 16gb of system memory, use at least 128gb, 256gb > is recommended for larger datasets.
