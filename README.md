@@ -1,5 +1,10 @@
 # NeuroSync Trainer Lite
 
+## **Validation**
+
+Loss validation + plotting added
+Refactored and optimised multi GPU processing (yey!)
+
 ## **Loss Variations** (utils/model.py)
 
 Have added a few types of loss you can uncomment and use to check what works best for you, the new type that penalises known zero'd dimensions seems to work well, (if you are zero'ing any dimensions).
