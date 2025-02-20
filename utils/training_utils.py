@@ -223,7 +223,6 @@ def train_one_epoch_multi_gpu(
             torch.cuda.synchronize(d)
 
         # ----- Gradient Averaging Across GPUs -----
-        # For each corresponding parameter across models, move each gradient to devices[0] and average.
         for param_tuple in zip(*[m.parameters() for m in models]):
             if all(p.grad is not None for p in param_tuple):
                 # Move every gradient to devices[0]
@@ -231,6 +230,15 @@ def train_one_epoch_multi_gpu(
                 avg_grad = sum(grad_list) / n
                 # Copy the averaged gradient into the corresponding parameter of models[0]
                 param_tuple[0].grad.data.copy_(avg_grad.view_as(param_tuple[0]))
+
+        # ===== Compute the pre-clip gradient norm =====
+        pre_clip_norm = calculate_gradient_norm(models[0])
+        # Use pre_clip_norm in our progress print (like the single-GPU version)
+        print_training_progress(step_idx, pre_clip_norm, sum(l.item() for l in losses)/n,
+                                  batch_step, epoch, total_epochs, steps_per_epoch, pbar)
+        # Record this value for plotting.
+        gradient_norms.append(pre_clip_norm)
+        # =============================================
 
         # Clip gradients on the primary model.
         torch.nn.utils.clip_grad_norm_(models[0].parameters(), clip)
@@ -261,11 +269,7 @@ def train_one_epoch_multi_gpu(
         train_steps.append(batch_step)
         train_losses.append(batch_loss)
 
-        # Optionally print training progress.
-        print_training_progress(step_idx, calculate_gradient_norm(models[0]), batch_loss,
-                                  batch_step, epoch, total_epochs, steps_per_epoch, pbar)
         gradient_norms.append(calculate_gradient_norm(models[0]))
-
         batch_step += 1
 
         # ----- Validation Step -----
