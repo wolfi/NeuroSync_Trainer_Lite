@@ -170,6 +170,9 @@ def train_one_epoch_multi_gpu(
     if val_dataloader is not None:
         val_iter = iter(val_dataloader)
 
+    # Initialize timer here
+    start_time = time.time()
+
     for step_idx in range(steps_per_epoch):
         # Fetch one batch for each model.
         batches = []
@@ -231,19 +234,17 @@ def train_one_epoch_multi_gpu(
                 # Copy the averaged gradient into the corresponding parameter of models[0]
                 param_tuple[0].grad.data.copy_(avg_grad.view_as(param_tuple[0]))
 
-        # ===== Compute the pre-clip gradient norm =====
+        # Compute the pre-clip gradient norm (for printing and logging)
         pre_clip_norm = calculate_gradient_norm(models[0])
-        # Use pre_clip_norm in our progress print (like the single-GPU version)
+        # Use pre_clip_norm in our progress print function (like in the single-GPU version)
         print_training_progress(step_idx, pre_clip_norm, sum(l.item() for l in losses)/n,
                                   batch_step, epoch, total_epochs, steps_per_epoch, pbar)
-        # Record this value for plotting.
         gradient_norms.append(pre_clip_norm)
-        # =============================================
 
         # Clip gradients on the primary model.
         torch.nn.utils.clip_grad_norm_(models[0].parameters(), clip)
 
-        # Optimizer step.
+        # Optimizer step and update scaler if using AMP.
         if use_amp:
             grad_scaler.step(optimizer)
             grad_scaler.update()
@@ -300,6 +301,7 @@ def train_one_epoch_multi_gpu(
     save_loss_plot(epoch, train_steps, train_losses, val_steps, val_losses, save_dir="dataset/validation_plots/loss")
 
     return batch_step
+
 
 
 
