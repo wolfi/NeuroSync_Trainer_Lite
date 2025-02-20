@@ -3,6 +3,7 @@
 ## **Validation**
 
 Loss validation + plotting added
+
 Refactored and optimised multi GPU processing (yey!)
 
 ## **Loss Variations** (utils/model.py)
