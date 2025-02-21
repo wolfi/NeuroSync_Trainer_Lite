@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import os
 import multiprocessing
 from tqdm import tqdm
@@ -11,8 +10,6 @@ from utils.training_utils import (
     count_parameters,
     train_one_epoch,
     train_one_epoch_multi_gpu,
-    train_one_epoch_multi_gpu_3,
-    train_one_epoch_multi_gpu_4,
     init_weights
 )
 from utils.model_utils import (
@@ -26,9 +23,8 @@ from utils.checkpoint_utils import (
 )
 from dataset.dataset import (
     prepare_dataloader,
-    prepare_dataloader_with_split
+    prepare_dataloader_with_split  
 )
-
 
 def train_model(
     config,
@@ -36,7 +32,8 @@ def train_model(
     model_1,
     model_2,
     model_3,
-    dataloader,
+    dataloader,          # Training DataLoader
+    val_dataloader,      # Validation DataLoader
     criterion,
     optimizer,
     scheduler,
@@ -47,100 +44,52 @@ def train_model(
 ):
     """
     General-purpose training loop that decides whether to use single-GPU 
-    or one of the multi-GPU routines (2, 3, or 4) based on config['num_gpus'].
+    or multi-GPU training based on config['num_gpus'].
     """
-
     n_epochs = config['n_epochs']
     total_batches = n_epochs * len(dataloader)
     lock = multiprocessing.Lock()
 
-    # Print param count for the main model
+    # Print parameter count for the primary model.
     count_parameters(model_0)
 
-    # devices[0] is always the primary device
     device0 = devices[0]
-
-    use_amp = config.get('use_amp', True)  
+    use_amp = config.get('use_amp', True)
     scaler = GradScaler() if use_amp else None
 
-
-    # TQDM progress bar
     with tqdm(total=total_batches, desc="Training", dynamic_ncols=True) as pbar:
         for epoch in range(start_epoch, n_epochs):
             if use_multi_gpu:
-                # Depending on config['num_gpus'], call the appropriate routine
-                if config['num_gpus'] == 2 and (model_1 is not None):
-                    batch_step = train_one_epoch_multi_gpu(
-                        epoch,
-                        model_0=model_0,
-                        model_1=model_1,
-                        dataloader=dataloader,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        device0=device0,
-                        device1=devices[1],
-                        clip=5.0,
-                        batch_step=batch_step,
-                        pbar=pbar,
-                        total_epochs=n_epochs,       
-                        use_amp=use_amp,           
-                        grad_scaler=scaler       
-                    )
-                elif config['num_gpus'] == 3 and (model_1 is not None) and (model_2 is not None):
-                    batch_step = train_one_epoch_multi_gpu_3(
-                        epoch,
-                        model_0=model_0,
-                        model_1=model_1,
-                        model_2=model_2,
-                        dataloader=dataloader,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        device0=device0,
-                        device1=devices[1],
-                        device2=devices[2],
-                        clip=5.0,
-                        batch_step=batch_step,
-                        pbar=pbar,
-                        total_epochs=n_epochs,
-                        use_amp=use_amp, grad_scaler=scaler   
-                    )
-                elif config['num_gpus'] == 4 and (model_1 is not None) and (model_2 is not None) and (model_3 is not None):
-                    batch_step = train_one_epoch_multi_gpu_4(
-                        epoch,
-                        model_0=model_0,
-                        model_1=model_1,
-                        model_2=model_2,
-                        model_3=model_3,
-                        dataloader=dataloader,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        device0=device0,
-                        device1=devices[1],
-                        device2=devices[2],
-                        device3=devices[3],
-                        clip=5.0,
-                        batch_step=batch_step,
-                        pbar=pbar,
-                        total_epochs=n_epochs,
-                        use_amp=use_amp, grad_scaler=scaler  
-                    )
-                else:
-                    batch_step = train_one_epoch(
-                        epoch,
-                        model=model_0,
-                        dataloader=dataloader,
-                        criterion=criterion,
-                        optimizer=optimizer,
-                        device=device0,
-                        clip=5.0,
-                        batch_step=batch_step,
-                        pbar=pbar,
-                        total_epochs=n_epochs,
-                        use_amp=use_amp,     
-                        grad_scaler=scaler  
-                    )
+                # Gather all models and corresponding devices (skip any that are None).
+                models = [model_0]
+                used_devices = [devices[0]]
+                if model_1 is not None:
+                    models.append(model_1)
+                    used_devices.append(devices[1])
+                if model_2 is not None:
+                    models.append(model_2)
+                    used_devices.append(devices[2])
+                if model_3 is not None:
+                    models.append(model_3)
+                    used_devices.append(devices[3])
+                batch_step = train_one_epoch_multi_gpu(
+                    epoch,
+                    models,
+                    dataloader,
+                    criterion,
+                    optimizer,
+                    used_devices,
+                    clip=2.0,
+                    batch_step=batch_step,
+                    pbar=pbar,
+                    total_epochs=n_epochs,
+                    use_amp=use_amp,
+                    grad_scaler=scaler,
+                    val_dataloader=val_dataloader,
+                    validation_interval=20
+                )
             else:
-                # Single-GPU training
+                # Single-GPU training branch.
                 batch_step = train_one_epoch(
                     epoch,
                     model=model_0,
@@ -148,35 +97,34 @@ def train_model(
                     criterion=criterion,
                     optimizer=optimizer,
                     device=device0,
-                    clip=5.0,
+                    clip=2.0,
                     batch_step=batch_step,
                     pbar=pbar,
                     total_epochs=n_epochs,
-                    use_amp=use_amp,      
-                    grad_scaler=scaler    
+                    use_amp=use_amp,
+                    grad_scaler=scaler,
+                    val_dataloader=val_dataloader,
+                    validation_interval=20
                 )
 
-            # Step the scheduler after each epoch
             scheduler.step()
-
-            # Save checkpoint
             save_checkpoint_and_data(
                 epoch, model_0, optimizer, scheduler, batch_step, config, lock, device0
             )
 
-    # After all epochs, save final model
     save_final_model(model_0)
     return batch_step
 
 
+
 if __name__ == "__main__":
     # If you'd like to manually specify which GPUs are visible:
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
     torch.cuda.empty_cache()
 
-    # Prepare dataset/dataloader (customize if needed, e.g. splits, etc.)
-    dataset, dataloader = prepare_dataloader(config)
+    # --- Use the split dataloader ---
+    train_dataset, val_dataset, train_dataloader, val_dataloader = prepare_dataloader_with_split(config, val_split=0.1)
 
     # We read the desired number of GPUs and check how many we *actually* have
     desired_gpus = config.get('num_gpus', 1)
@@ -229,14 +177,15 @@ if __name__ == "__main__":
         if model_3 is not None:
             model_3.load_state_dict(model_0.state_dict())
 
-    # Run training
+    # Run training: pass both train_dataloader and val_dataloader
     train_model(
         config,
         model_0,
         model_1,
         model_2,
         model_3,
-        dataloader,
+        train_dataloader,     # <-- Training DataLoader
+        val_dataloader,       # <-- Validation DataLoader
         criterion,
         optimizer,
         scheduler,
@@ -245,6 +194,7 @@ if __name__ == "__main__":
         start_epoch=start_epoch,
         batch_step=batch_step
     )
+
 
 
 
