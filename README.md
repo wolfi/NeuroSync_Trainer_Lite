@@ -8,9 +8,9 @@ Refactored and optimised multi GPU processing (yey!)
 
 ## **Loss Variations** (utils/model.py)
 
-Have added a few types of loss you can uncomment and use to check what works best for you, the new type that penalises known zero'd dimensions seems to work well, (if you are zero'ing any dimensions).
+Have added a few types of loss you can uncomment and use to check what works best for you, the new type that penalises known zero'd dimensions seems to work well, (if you are zero'ing any dimensions). **21.02.2025 update to latest version of model.py for the most reliable loss, others still present for research**
 
-Have a play around, I will get around to some better validation soon. ;)
+Have a play around, I will get around to some better validation soon. ;) **validation now present**
 
 ## Interpolate slower and faster versions of your data automatically in data_processing.py with def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr, include_fast=True, include_slow=False, blend_boundaries=True, blend_frames=30):
 
