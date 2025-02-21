@@ -151,9 +151,9 @@ def collect_features(audio_path, audio_features_csv_path, facial_csv_path, sr,
     # Optionally add a fast version (downsampled by a factor of 2).
     if include_fast:
         facial_copy = facial_data.copy()
-        facial_fast_smoothed = smooth_facial_data(facial_copy)
+       # facial_copy = smooth_facial_data(facial_copy) # this may or may not help depending on training time and or data length. Beware.
         audio_fast = audio_features[::2].copy()
-        facial_fast = facial_fast_smoothed[::2].copy()
+        facial_fast = facial_copy[::2].copy()
         audio_versions.append(audio_fast)
         facial_versions.append(facial_fast)
 
