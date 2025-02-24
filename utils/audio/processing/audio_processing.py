@@ -103,15 +103,17 @@ def process_audio_features(audio_features, model, device, config):
 
     # Zero specified columns using the helper method
     
-  #  final_decoded_outputs = zero_columns(final_decoded_outputs)
+   # final_decoded_outputs = zero_columns(final_decoded_outputs) # these things should be done at inference time when the model is built.
+  #  ease_duration_frames = min(int(0.2 * 60), final_decoded_outputs.shape[0])
+  #  easing_factors = np.linspace(0, 1, ease_duration_frames)[:, None]
+  #  final_decoded_outputs[:ease_duration_frames] *= easing_factors
 
 
     return final_decoded_outputs
 
 def zero_columns(data):
 
-    columns_to_zero = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 33, 34, 35, 36, 41, 42, 43, 44, 45, 47, 48, 49, 50,
-                       51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+    columns_to_zero = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
     modified_data = np.copy(data)  # Ensure original data is not modified
     modified_data[:, columns_to_zero] = 0
     return modified_data

@@ -33,9 +33,9 @@ training_config = {
     'dropout': 0.3,          # Dropout rate
     'batch_size':  128, # Batch size ## REDUCE THIS IF < 24GB GPU
     'micro_batch_size': 128, # Micro batch size # If you increase this you need to reduce the batch size
-    'learning_rate': 1e-4,   # Learning rate
+    'learning_rate': 5e-5,   # Learning rate
     'weight_decay': 1e-5,    # Weight decay for the optimizer
-    'n_epochs': 500,         # Number of training epochs
+    'n_epochs': 50,         # Number of training epochs
     'output_dim': 61,        # ,       
     'delta': 1,              # Delta for Huber loss
     'w1': 1.0,               # Weight for Huber loss
