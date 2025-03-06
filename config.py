@@ -1,3 +1,7 @@
+# This software is licensed under a **dual-license model**
+# For individuals and businesses earning **under $1M per year**, this software is licensed under the **MIT License**
+# Businesses or organizations with **annual revenue of $1,000,000 or more** must obtain permission to use this software commercially.
+
 import os
 import platform
 
@@ -29,14 +33,14 @@ training_config = {
     'frame_rate': 60,        # Frame rate for facial data
     'hidden_dim': 1024,      # Hidden dimension for the model ### increases increase GPU memory requirements a lot.
     'n_layers': 8,           # Number of layers in the model
-    'num_heads': 16,          # Number of attention heads
+    'num_heads': 16,         # Number of attention heads
     'dropout': 0.3,          # Dropout rate
-    'batch_size':  128, # Batch size ## REDUCE THIS IF < 24GB GPU
-    'micro_batch_size': 128, # Micro batch size # If you increase this you need to reduce the batch size
+    'batch_size':  128,      # Batch size ## REDUCE THIS IF < 24GB GPU
+    'micro_batch_size': 128, # 64 or 128 is sweet spot # If you increase this you need to reduce the batch size - lower = faster inference at accuracy cost, higher = more accuracy at longer inference.
     'learning_rate': 5e-5,   # Learning rate
     'weight_decay': 1e-5,    # Weight decay for the optimizer
-    'n_epochs': 50,         # Number of training epochs
-    'output_dim': 61,        # ,       
+    'n_epochs': 50,          # Number of training epochs
+    'output_dim': 61,        # Use 61 if training on iPhone data alone. On the model available on huggingface, this is 68 because we add dimensions for emotion. hstack extra data to out for more data out.       
     'delta': 1,              # Delta for Huber loss
     'w1': 1.0,               # Weight for Huber loss
     'w2': 1.0, 
@@ -52,5 +56,7 @@ training_config = {
     'audio_path': r"dataset/test_set/audio.wav",
     'ground_truth_path': r"dataset/test_set/testset.csv",
     'checkpoint_path': r"out/checkpoints/checkpoint.pth", 
+    'use_amp': True,
+    'in_memory' : False # if true, use in memory data storage - requires a lot of system memory if your dataset is large and is no quicker than if using lazy loading - just dont ;)
 }
 

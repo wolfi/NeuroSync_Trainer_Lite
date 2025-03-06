@@ -1,9 +1,12 @@
 # model_utils.py
+# This software is licensed under a **dual-license model**
+# For individuals and businesses earning **under $1M per year**, this software is licensed under the **MIT License**
+# Businesses or organizations with **annual revenue of $1,000,000 or more** must obtain permission to use this software commercially.
 
 import os
 import torch
 import torch.optim as optim
-
+import torch.nn as nn
 from utils.model import Seq2Seq, Encoder, Decoder, Loss
 
 def prepare_training_components(config, model):
@@ -47,4 +50,43 @@ def save_final_model(model, final_model_path='out/model.pth'):
     os.makedirs(os.path.dirname(final_model_path), exist_ok=True)
     torch.save(model.state_dict(), final_model_path)
     print(f"Final model saved to {final_model_path}")
+
+
+def init_weights(m):
+    if isinstance(m, (nn.Linear, nn.Conv1d)):
+        print(f"Initializing {m} with normal distribution")
+        nn.init.normal_(m.weight, mean=0.0, std=0.02)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
+def count_parameters(model):
+    """Count and print the number of parameters in a model."""
+    param_count = sum(p.numel() for p in model.parameters())
+    print(f"Total number of parameters: {param_count}")
+    return param_count
+
+
+def calculate_gradient_norm(model):
+    """Calculate and return the gradient norm for the model."""
+    total_norm = 0
+    for p in model.parameters():
+        if p.grad is not None:
+            param_norm = p.grad.data.norm(2)
+            total_norm += param_norm.item() ** 2
+    total_norm = total_norm ** (1. / 2)
+    return total_norm
+    
+def _sync_models(models):
+    """
+    Synchronizes parameters from the primary model (models[0]) to all other models
+    and zeros their gradients.
+    """
+    for m in models[1:]:
+        for p0, p_other in zip(models[0].parameters(), m.parameters()):
+            p_other.data.copy_(p0.data.to(p_other.device))
+    # Zero gradients for models[1:].
+    for m in models[1:]:
+        for p in m.parameters():
+            if p.grad is not None:
+                p.grad.zero_()
 

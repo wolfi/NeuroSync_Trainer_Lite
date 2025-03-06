@@ -1,5 +1,17 @@
 # NeuroSync Trainer Lite
 
+## Using the NeuroSync Model after you have trained it.
+To **generate facial blendshapes from audio** and send them to Unreal Engine, you'll need:
+- [**NeuroSync Local API**](https://github.com/AnimaVR/NeuroSync_Local_API) – Handles real-time facial data processing.
+- [**NeuroSync Player**](https://github.com/AnimaVR/NeuroSync_Player) – Sends the animation data to Unreal Engine or any **LiveLink-compatible** software.
+
+### **04/03/2025 Caching Dataloader for low memory capacity systems**
+
+If you dont have very much system memory, training large datasets was impossible - a cache dataloader sample has been added (commented out on dataset.py) so you can have an dataset as large as your hard drive and it still be as performant as an in memory alternative.
+
+This is WIP and not fully tested yet, please beware!
+
+
 ### **21/02/2025 Scaling UP! | New 228m parameter model + config added**
 
 A milestone has been hit and previous research has got us to a point where scaling the model up is now possible with much faster training and better quality overall.
@@ -105,11 +117,6 @@ If you want to train using multiple GPUs, update the **configuration file**:
 4. Start training as usual.
 
 You can easily modify the code to support **more than 4 GPUs**—just ask ChatGPT for assistance!
-
-## Using the NeuroSync Model
-To **generate facial blendshapes from audio** and send them to Unreal Engine, you'll need:
-- [**NeuroSync Local API**](https://github.com/AnimaVR/NeuroSync_Local_API) – Handles real-time facial data processing.
-- [**NeuroSync Player**](https://github.com/AnimaVR/NeuroSync_Player) – Sends the animation data to Unreal Engine or any **LiveLink-compatible** software.
 
 ## License
 This software is licensed under a dual-license model:
